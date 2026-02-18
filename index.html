@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Hydrologique – VigiEau CI</title>
+
+  <!-- Leaflet (utilisé par qgis2web) -->
+  <link rel="stylesheet" href="maps/carte_qgis/css/leaflet.css" />
+  <script src="maps/carte_qgis/js/leaflet.js"></script>
+
+  <!-- Chart.js (open source) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f6f9;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #0b3d91;
+      color: white;
+      padding: 15px 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #map-container {
+      flex: 2;
+      position: relative;
+    }
+
+    #mapFrame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .sidebar {
+      flex: 1;
+      background: white;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: -2px 0 6px rgba(0,0,0,0.1);
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .indicator {
+      font-size: 26px;
+      font-weight: bold;
+    }
+
+    .status-ok { color: green; }
+    .status-alert { color: orange; }
+    .status-critical { color: red; }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      margin: 4px 0;
+    }
+
+    .btn-primary { background:#0b3d91; color:white; }
+    .btn-warning { background:orange; color:white; }
+
+    footer {
+      background: #eaeaea;
+      text-align: center;
+      padding: 8px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  Dashboard de Surveillance Hydrologique – Bassin du Bandama
+</header>
+
+<div class="container">
+
+  <!-- CARTE QGIS2WEB (intégrée proprement) -->
+  <div id="map-container">
+    <iframe id="mapFrame" src="maps/carte_qgis/index.html"></iframe>
+  </div>
+
+  <!-- PANNEAU LATERAL -->
+  <div class="sidebar">
+
+    <div class="card">
+      <h3>Niveau actuel</h3>
+      <div id="waterLevel" class="indicator">-- m</div>
+      <p>Seuil vigilance : <span id="threshold">--</span> m</p>
+    </div>
+
+    <div class="card">
+      <h3>Précipitations (24h)</h3>
+      <canvas id="rainChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Débit (m³/s)</h3>
+      <canvas id="flowChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Filtres rapides</h3>
+      <button class="btn-primary" onclick="showAll()">Afficher tout</button>
+      <button class="btn-warning" onclick="focusVigilance()">Mode Vigilance</button>
+    </div>
+
+  </div>
+
+</div>
+
+<footer>
+  Application open source – QGIS + qgis2web + GitHub Pages
+</footer>
+
+<script>
+
+/* =============================
+   1️⃣ CHARGEMENT DONNÉES CSV
+============================= */
+
+async function loadCSV(url) {
+  const response = await fetch(url);
+  const text = await response.text();
+  const rows = text.split("\n").slice(1);
+  return rows.map(r => r.split(","));
+}
+
+/* =============================
+   2️⃣ INDICATEUR DYNAMIQUE
+============================= */
+
+async function updateIndicator() {
+  const data = await loadCSV("data/niveau.csv");
+  const latest = data[data.length - 1];
+
+  const level = parseFloat(latest[1]);
+  const seuil = 2.0;
+
+  document.getElementById("waterLevel").innerText = level + " m";
+  document.getElementById("threshold").innerText = seuil;
+
+  const el = document.getElementById("waterLevel");
+  el.className = "indicator";
+
+  if (level >= seuil * 1.2) el.classList.add("status-critical");
+  else if (level >= seuil) el.classList.add("status-alert");
+  else el.classList.add("status-ok");
+}
+
+updateIndicator();
+
+/* =============================
+   3️⃣ GRAPHIQUES DYNAMIQUES
+============================= */
+
+var rainChart = new Chart(document.getElementById('rainChart'), {
+  type: 'bar',
+  data: {
+    labels: ['J-3','J-2','J-1','Aujourd\'hui'],
+    datasets: [{
+      label: 'mm',
+      data: [5,12,8,15]
+    }]
+  }
+});
+
+var flowChart = new Chart(document.getElementById('flowChart'), {
+  type: 'line',
+  data: {
+    labels: ['Jan','Fév','Mar','Avr','Mai'],
+    datasets: [{
+      label: 'm³/s',
+      data: [22,30,28,35,40],
+      fill: false
+    }]
+  }
+});
+
+/* =============================
+   4️⃣ INTERACTION AVEC CARTE
+============================= */
+
+function getMap() {
+  return document.getElementById("mapFrame").contentWindow.map;
+}
+
+function showAll() {
+  const map = getMap();
+  for (let key in map._layers) {
+    try { map.addLayer(map._layers[key]); } catch(e) {}
+  }
+}
+
+function focusVigilance() {
+  alert("Ici tu peux coder l'affichage uniquement des couches vigilance.");
+}
+
+</script>
+
+</body>
+</html>
